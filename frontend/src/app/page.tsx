@@ -292,14 +292,14 @@ export default function Home() {
     }
   };
 
-  const outputRef = useRef(null);
+  const outputRef = useRef<HTMLDivElement>(null);
 
   let x = 1;
   const handleRunCode = async () => {
     setShowOutput(true);
     try {
       const result = await runcode(code);
-      setOutput(result);
+      setOutput(String(result));
 
       if (x > 0) {
         setTimeout(() => {
@@ -310,7 +310,7 @@ export default function Home() {
 
       outputRef.current?.scrollIntoView({ behavior: "smooth" });
     } catch (error) {
-      setOutput(`Error: ${error?.message}`);
+     setOutput(`Error: ${String(error)}`);
     }
   };
 
