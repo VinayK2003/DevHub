@@ -24,7 +24,7 @@ const runcode = async (codefromtext) => {
   let output = document.getElementById('output');
   try{
       const{run:result}=await executecode(codefromtext)
-      output.innerText=result.output
+      return result.output
   }catch(error){
       console.log("errorrrr :- ",error)
   }
