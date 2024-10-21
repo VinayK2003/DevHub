@@ -18,6 +18,7 @@ export default function Home() {
   const [showOutput, setShowOutput] = useState(false);
   const [output, setOutput] = useState("");
   const [showChat, setShowChat] = useState(false);
+  const [selectedLanguage, setselectedLanguage] = useState<string>("");
 
   const websocketRef = useRef<WebSocket | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -33,7 +34,7 @@ export default function Home() {
 
   const handleRunCode = async () => {
     try {
-      const result = await runCode(code);    
+      const result = await runCode(selectedLanguage,code);    
         setShowOutput(true);
         setOutput(String(result));
     } catch (error) {
@@ -57,6 +58,8 @@ export default function Home() {
         handleRunCode={handleRunCode}
         setShowChat={setShowChat}
         showChat={showChat}
+        setselectedLanguage={setselectedLanguage}
+        selectedLanguage={selectedLanguage}
       />
       <div className="flex flex-1 overflow-hidden">
         <CodeEditor

@@ -1,12 +1,13 @@
 import axios from "axios";
+import {LANGUAGE_VERSIONS} from "../components/Navbar/Languages"
 
 const API = axios.create({
     baseURL: "https://emkc.org/api/v2/piston", 
 });
-const executecode=async (codefromtext)=>{
+const executecode=async (language,codefromtext)=>{
     const response = await API.post("/execute", {
-      "language": "javascript",
-      "version": "18.15.0",
+      "language": language,
+      "version": LANGUAGE_VERSIONS[language],
       "files": [
         {
           "content": codefromtext
@@ -19,11 +20,11 @@ const executecode=async (codefromtext)=>{
     return response.data
  
 }
-const runcode = async (codefromtext) => {
+const runcode = async (language,codefromtext) => {
   // let codefromtext = document.getElementById('text-area').value;
   let output = document.getElementById('output');
   try{
-      const{run:result}=await executecode(codefromtext)
+      const{run:result}=await executecode(language,codefromtext)
       return result.output
   }catch(error){
       console.log("errorrrr :- ",error)

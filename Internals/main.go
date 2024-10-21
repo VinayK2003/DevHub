@@ -11,8 +11,14 @@ import (
 
 func main() {
 	setupApp()
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(http.StatusOK)
+        w.Write([]byte("Backend is running"))
+    })
 
-	log.Fatal(http.ListenAndServe("127.0.0.1:8080", nil))
+    // log.Println("Starting Go backend on port 8080...")
+    log.Fatal(http.ListenAndServe(":8080", nil))
+	// log.Fatal(http.ListenAndServe("127.0.0.1:8080", nil))
 }
 
 func setupApp() {
