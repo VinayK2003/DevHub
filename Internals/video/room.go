@@ -1,73 +1,83 @@
+
 package video
 
 import (
-	"math/rand"
-	"sync"
-	"time"
-
-	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
+    "math/rand"
+    "sync"
+    "time"
+    "github.com/google/uuid"
+    "github.com/gorilla/websocket"
 )
 
 type Participant struct {
-	Host bool
-	ID   string
-	Conn *websocket.Conn
-	Mutex sync.Mutex
+    Host bool
+    ID   string
+    Conn *websocket.Conn
 }
 
 type RoomMap struct {
-	Mutex 	sync.RWMutex
-	Map 	map[string][]Participant
+    Mutex sync.RWMutex
+    Map   map[string][]Participant
 }
 
-//initialize room map
 func (r *RoomMap) Init() {
-	r.Map = make(map[string][]Participant)
+    r.Mutex.Lock()
+    defer r.Mutex.Unlock()
+    r.Map = make(map[string][]Participant)
 }
 
-//get all participant in a room
-func (r *RoomMap) Get(roomID string)[]Participant {
-	r.Mutex.RLock()
-	defer r.Mutex.RUnlock()
-
-	return r.Map[roomID]
+func (r *RoomMap) Get(roomID string) []Participant {
+    r.Mutex.RLock()
+    defer r.Mutex.RUnlock()
+    return r.Map[roomID]
 }
 
-//create a room
 func (r *RoomMap) CreateRoom() string {
-	r.Mutex.Lock()
-	defer r.Mutex.Unlock()
+    r.Mutex.Lock()
+    defer r.Mutex.Unlock()
 
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789")
-	b := make([]rune, 8)
-
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-
-	roomID := string(b)
-	r.Map[roomID] = []Participant{}
-
-	return roomID
+    rand.Seed(time.Now().UnixNano())
+    letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789")
+    b := make([]rune, 8)
+    for i := range b {
+        b[i] = letters[rand.Intn(len(letters))]
+    }
+    roomID := string(b)
+    r.Map[roomID] = []Participant{}
+    return roomID
 }
 
-//join a room handler
 func (r *RoomMap) InsertIntoRoom(roomID string, host bool, conn *websocket.Conn) {
-	r.Mutex.Lock()
-	defer r.Mutex.Unlock()
-
-	clientID := uuid.New().String()
-	incomingParticipant := Participant{host, clientID, conn, sync.Mutex{}}
-
-	r.Map[roomID] = append(r.Map[roomID], incomingParticipant)
+    r.Mutex.Lock()
+    defer r.Mutex.Unlock()
+    
+    clientID := uuid.New().String()
+    participant := Participant{
+        Host: host,
+        ID:   clientID,
+        Conn: conn,
+    }
+    r.Map[roomID] = append(r.Map[roomID], participant)
 }
 
-//delete a room
 func (r *RoomMap) DeleteRoom(roomID string) {
-	r.Mutex.Lock()
-	defer r.Mutex.Unlock()
+    r.Mutex.Lock()
+    defer r.Mutex.Unlock()
+    delete(r.Map, roomID)
+}
 
-	delete(r.Map, roomID)
+func (r *RoomMap) RemoveParticipant(roomID string, conn *websocket.Conn) {
+    r.Mutex.Lock()
+    defer r.Mutex.Unlock()
+
+    participants := r.Map[roomID]
+    for i, p := range participants {
+        if p.Conn == conn {
+            r.Map[roomID] = append(participants[:i], participants[i+1:]...)
+            break
+        }
+    }
+    if len(r.Map[roomID]) == 0 {
+        delete(r.Map, roomID)
+    }
 }

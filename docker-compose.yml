@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile # Ensure this points to your Dockerfile for the frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile # Ensure this points to your Dockerfile for the backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./Internals:/app/Internals # Mount the Internals folder for live updates
+    environment:
+      - GO_ENV=development
+
+networks:
+  default:
+    driver: bridge
