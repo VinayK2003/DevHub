@@ -79,7 +79,7 @@ func JoinRoomRequestHandler(w http.ResponseWriter, r *http.Request) {
     broadcastingStarted.Do(func() {
         go broadcaster()
     })
-
+    
     for {
         var msg BroadcastMessage
         err := ws.ReadJSON(&msg.Message)

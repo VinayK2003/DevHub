@@ -15,7 +15,6 @@ type Client struct {
 	manager    *Manager
 }
 
-// factory method for creating new client
 func NewClient(connection *websocket.Conn, manager *Manager) *Client {
 	client := &Client{
 		connection: connection,
@@ -27,7 +26,6 @@ func NewClient(connection *websocket.Conn, manager *Manager) *Client {
 }
 
 func (client *Client) writeMessage() {
-	//clean up broken connections
 	defer func() {
 		client.manager.removeClient(client)
 	}()
@@ -60,7 +58,6 @@ func (client *Client) writeMessage() {
 }
 
 func (client *Client) readMessages() {
-	//clean up broken connections
 	defer func() {
 		client.manager.removeClient(client)
 	}()
@@ -69,8 +66,6 @@ func (client *Client) readMessages() {
 		_, payload, err := client.connection.ReadMessage()
 
 		if err != nil {
-			//connection got broken without recieving a
-			//close connection request
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error reading messages %v", err)
 			}
@@ -84,7 +79,6 @@ func (client *Client) readMessages() {
 		}
 		log.Printf("Received event of type: %s", request.Type)
 		
-		//route event to the right handler for execution
 		routeError := client.manager.routeEvent(request, client)
 
 		if routeError != nil {

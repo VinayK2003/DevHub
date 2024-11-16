@@ -4,7 +4,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: Dockerfile # Ensure this points to your Dockerfile for the frontend
+      dockerfile: Dockerfile 
     ports:
       - "3000:3000"
     environment:
@@ -15,11 +15,11 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile # Ensure this points to your Dockerfile for the backend
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
     volumes:
-      - ./Internals:/app/Internals # Mount the Internals folder for live updates
+      - ./Internals:/app/Internals 
     environment:
       - GO_ENV=development
 

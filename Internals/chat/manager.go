@@ -28,7 +28,6 @@ type Manager struct {
 	handlers map[string]EventHandler
 }
 
-// factory function for creating a Manager
 func NewManager(ctx context.Context) *Manager {
 	manager := &Manager{
 		clients:  make(ClientList),
@@ -68,7 +67,6 @@ func SendMessage(event Event, client *Client) error {
 		Type:    EventIncomingMessage,
 	}
 
-	//dispatch to all connected client channel
 	for client := range client.manager.clients {
 		client.egress <- broadcastMsgEvent
 	}
@@ -76,7 +74,6 @@ func SendMessage(event Event, client *Client) error {
 	return nil
 }
 
-// set up websocket server
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -94,11 +91,8 @@ func (manager *Manager) ServeWebSocket(writer http.ResponseWriter, request *http
 	}
 
 	log.Println("new client connected")
-
-	//create a new client
 	newClient := NewClient(connection, manager)
 
-	//add new client to manager's list
 	manager.addClient(newClient)
 	go func() {
         for {
@@ -123,16 +117,12 @@ func (manager *Manager) ServeWebSocket(writer http.ResponseWriter, request *http
         }
     }()
 
-	//read all messages in channel
 	go newClient.readMessages()
 
-	//set up write message ability
 	go newClient.writeMessage()
 }
 
 func (manager *Manager) addClient(client *Client) {
-	// to make sure there's no race condition or deadlock
-	// when adding new clients concurrently
 	manager.Lock()
 	defer manager.Unlock()
 	manager.clients[client] = true
@@ -149,9 +139,7 @@ func (manager *Manager) removeClient(client *Client) {
 }
 
 func (manager *Manager) routeEvent(event Event, client *Client) error {
-	//check if the event type is part of the handlers within
-	log.Printf("Received event: %+v", event) // Log the entire event
-    
+	log.Printf("Received event: %+v", event) 
     if event.Type == "" {
         return errors.New("Event type is empty")
     }
@@ -160,10 +148,7 @@ func (manager *Manager) routeEvent(event Event, client *Client) error {
 		log.Println("unsupported event")
 		return errors.New("Unsupported event")
 	}
-	
 	log.Println("Received the event of type ", event.Type)
-	
-
 	err := handler(event, client)
 
 	if err != nil {
