@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"project-streamify/Internals/auth"
 	"project-streamify/Internals/chat"
 	"project-streamify/Internals/code"
 	"project-streamify/Internals/video"
@@ -12,11 +13,11 @@ import (
 func main() {
 	setupApp()
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-        w.WriteHeader(http.StatusOK)
-        w.Write([]byte("Backend is running"))
-    })
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Backend is running"))
+	})
 
-    log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func setupApp() {
@@ -28,5 +29,6 @@ func setupApp() {
 	http.HandleFunc("/code", code.HandleConnection)
 	http.HandleFunc("/create-room", video.CreateRoomRequestHandler)
 	http.HandleFunc("/join-room", video.JoinRoomRequestHandler)
+	http.HandleFunc("/api/login", auth.Login)
 	code.StartServer()
 }

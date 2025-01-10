@@ -3,7 +3,7 @@
 export const setupWebSocket = (
     websocketRef: React.MutableRefObject<WebSocket | null>,
     setSocketStatus: (status: string) => void,
-    setMessages: React.Dispatch<React.SetStateAction<string[]>>
+    setMessages: React.Dispatch<React.SetStateAction<string[][]>>
   ) => {
     if (!window["WebSocket"]) {
       alert("Unable to proceed, browser does not support websocket");
@@ -29,9 +29,14 @@ export const setupWebSocket = (
   
     ws.onmessage = function (evt) {
       const eventData = JSON.parse(evt.data);
+      console.log("eventData :-",eventData)
       if (eventData.type === "incoming_message") {
         const date = new Date();
-        const formattedMsg = `${eventData.payload.message} - ${date.toLocaleTimeString()}`;
+        const formattedMsg:string[]=[];
+         formattedMsg[0] = `${eventData.payload.From }`;
+         formattedMsg[1]=`${eventData.payload.message}`
+         formattedMsg[2]= `${date.toLocaleTimeString()}`
+       
         setMessages((prevMessages) => [...prevMessages, formattedMsg]);
       }
     };

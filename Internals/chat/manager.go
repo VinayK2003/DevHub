@@ -55,7 +55,7 @@ func SendMessage(event Event, client *Client) error {
 	broadcastMessage.TimeSent = time.Now()
 	broadcastMessage.Message = chatEvent.Message
 	broadcastMessage.From = chatEvent.From
-
+	log.Println(broadcastMessage)
 	data, err := json.Marshal(broadcastMessage)
 	if err != nil {
 		return fmt.Errorf("failed to marshal broadcast msg %v", err)

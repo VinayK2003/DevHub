@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "./components/Navbar/Navbar";
 import CodeEditor from "./components/CodeEditor/CodeEditor";
+import Login from "./login/page"
 import Chat from "./components/Chat/Chat";
 import VideoSection from "./components/VideoSecion/VideoSection";
 import OutputSection from "./components/OutputSection/OutputSection";
@@ -11,7 +12,8 @@ import  runCode  from "./utils/Code";
 
 export default function Home() {
   const [socketStatus, setSocketStatus] = useState("Not Connected");
-  const [messages, setMessages] = useState<string[]>([]);
+  const [username, setUsername] = useState<string>("");
+  const [messages, setMessages] = useState<string[][]>([]);
   const [code, setCode] = useState("");
   const [meetingCode, setMeetingCode] = useState("");
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -31,6 +33,13 @@ export default function Home() {
     openCamera(setLocalStream);
     setupCodeWebSocket(codeRef, setCode);
   }, []);
+  const updateusername = (username: string) => {
+    setUsername(username);
+  };
+  if (!username) {
+    console.log("Rendering Login with setUsername:", setUsername)
+    return <Login updateusername={updateusername} />;
+}
 
   const handleRunCode = async () => {
     try {
@@ -61,7 +70,7 @@ export default function Home() {
         setselectedLanguage={setselectedLanguage}
         selectedLanguage={selectedLanguage}
       />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="h-full flex flex-1 overflow-hidden ">
         <CodeEditor
           code={code}
           setCode={setCode}
@@ -70,6 +79,7 @@ export default function Home() {
         />
         {showChat && (
           <Chat
+            username={username}
             messages={messages}
             setShowChat={setShowChat}
             websocketRef={websocketRef}

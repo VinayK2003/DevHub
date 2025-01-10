@@ -2,6 +2,7 @@ package chat
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/gorilla/websocket"
@@ -73,11 +74,11 @@ func (client *Client) readMessages() {
 		}
 
 		var request Event
+		fmt.Println(payload)
 
 		if err := json.Unmarshal(payload, &request); err != nil {
 			log.Printf("error marshalling event :%v", err)
 		}
-		log.Printf("Received event of type: %s", request.Type)
 		
 		routeError := client.manager.routeEvent(request, client)
 
