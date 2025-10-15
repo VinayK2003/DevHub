@@ -33,13 +33,13 @@ export default function Home() {
     openCamera(setLocalStream);
     setupCodeWebSocket(codeRef, setCode);
   }, []);
-  const updateusername = (username: string) => {
-    setUsername(username);
-  };
-  if (!username) {
-    console.log("Rendering Login with setUsername:", setUsername)
-    return <Login updateusername={updateusername} />;
-}
+  // const updateusername = (username: string) => {
+  //   setUsername(username);
+  // };
+  // if (!username) {
+  //   console.log("Rendering Login with setUsername:", setUsername)
+  //   return <Login updateusername={updateusername} />;
+// }
 
   const handleRunCode = async () => {
     try {

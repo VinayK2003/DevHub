@@ -32,7 +32,6 @@ const Login = ({ updateusername }: { updateusername: (username: string) => void 
       });
       if (res.ok) {
         const data = await res.json();
-        console.log("data +++",data);
         updateusername(loginUsername);
         // console.log("setUsername prop:2", setUsername); // Add this line
         setPassword(data.password);
