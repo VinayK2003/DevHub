@@ -4,7 +4,6 @@ import { OnChange } from "@monaco-editor/react";
 import { LANGUAGE_VERSIONS } from "../Navbar/Languages";
 import { FaWandMagicSparkles } from "react-icons/fa6";
 import { BsFillSendFill } from "react-icons/bs";
-import { GoogleGenAI } from "@google/genai";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -62,38 +61,24 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       setIsLoading(true);
       setError(null);
 
-      // Detailed logging of request
-      console.log("Sending request with prompt:", textBoxValue);
-      const GEMINI_API_KEY = "AIzaSyD8szuXyKVLAsMDcPR-V1qveXeOyS8O9Ag";
-      console.log("GEMINI_API_KEY", GEMINI_API_KEY);
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: textBoxValue,
+      const resp=await fetch("http://localhost:8080/api/generate-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body:JSON.stringify({
+         prompt: textBoxValue 
+        }),
       });
-      console.log("AI Response", response.text);
 
-      // Comprehensive error handling
-      // if (!response.ok) {
-      //   const errorText = await response.text();
-      //   console.error('Detailed Error Response:', {
-      //     status: response.status,
-      //     errorText: errorText
-      //   });
-      //   throw new Error(`API Error: ${response.status} - ${errorText || 'Unknown error'}`);
-      // }
+      if(!resp.ok){
+        throw new Error(`API Error: ${resp.status} ${resp.statusText}`);
+      }
 
-      // Safe JSON parsing
-      // const data = await response.json();
-      // console.log('Parsed Response Data:', data);
-
-      // Validate response
-      // if (!data || !data.generatedCode) {
-      //   throw new Error("No generated code found in the response");
-      // }
+      const data=await resp.json();
 
       // Update editor content
-      let generatedCode = response.text ?? "";
+      let generatedCode = data.generatedCode ?? "";
       const extractCodeBlock = (text: string, language?: string): string => {
         const regex = language
           ? new RegExp("```" + language + "\\n([\\s\\S]*?)```", "m")
@@ -104,8 +89,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       };
 
       generatedCode = extractCodeBlock(generatedCode);
-
-      setCode(generatedCode);
+      setCode(data.generatedCode);
 
       // Broadcast the generated code if We2bSocket is active
       // if (codeRef.current?.readyState === WebSocket.OPEN) {
@@ -155,7 +139,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             noSyntaxValidation: true,
           });
         }}
-      />32
+      />
       <div className="absolute bottom-4 left-4">
         <FaWandMagicSparkles
           onClick={handleIconClick}
