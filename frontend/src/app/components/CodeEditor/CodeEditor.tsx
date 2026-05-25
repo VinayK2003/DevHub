@@ -4,10 +4,10 @@ import { OnChange } from "@monaco-editor/react";
 import { LANGUAGE_VERSIONS } from "../Navbar/Languages";
 import { FaWandMagicSparkles } from "react-icons/fa6";
 import { BsFillSendFill } from "react-icons/bs";
+import { API_BASE } from "../../config/api";
 
-const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
-  ssr: false,
-});
+const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+
 const Language = Object.entries(LANGUAGE_VERSIONS);
 
 interface CodeEditorProps {
@@ -17,12 +17,19 @@ interface CodeEditorProps {
   showChat: boolean;
 }
 
-const CodeEditor: React.FC<CodeEditorProps> = ({
-  code,
-  setCode,
-  codeRef,
-  showChat,
-}) => {
+/**
+ * Extracts the first fenced code block from a markdown string.
+ * Falls back to the trimmed raw text if no code block is found.
+ */
+function extractCodeBlock(text: string, language?: string): string {
+  const pattern = language
+    ? new RegExp("```" + language + "\\n([\\s\\S]*?)```", "m")
+    : /```[\w]*\n([\s\S]*?)```/m;
+  const match = text.match(pattern);
+  return match ? match[1].trim() : text.trim();
+}
+
+const CodeEditor: React.FC<CodeEditorProps> = ({ code, setCode, codeRef, showChat }) => {
   const [isTextBoxOpen, setIsTextBoxOpen] = useState(false);
   const [textBoxValue, setTextBoxValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -36,11 +43,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       }
     }
   };
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault(); // prevent page reload
-    handleSendClick();
-    console.log("Submitted")
-  };
+
   const handleIconClick = () => {
     setIsTextBoxOpen((prev) => !prev);
     setError(null);
@@ -61,56 +64,46 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       setIsLoading(true);
       setError(null);
 
-      const resp=await fetch("http://localhost:8080/api/generate-code", {
+      const resp = await fetch(`${API_BASE}/api/generate-code`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body:JSON.stringify({
-         prompt: textBoxValue 
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: textBoxValue }),
       });
 
-      if(!resp.ok){
-        throw new Error(`API Error: ${resp.status} ${resp.statusText}`);
+      if (!resp.ok) {
+        throw new Error(`API error: ${resp.status} ${resp.statusText}`);
       }
 
-      const data=await resp.json();
+      const data = await resp.json() as { generatedCode?: string; error?: string };
 
-      // Update editor content
-      let generatedCode = data.generatedCode ?? "";
-      const extractCodeBlock = (text: string, language?: string): string => {
-        const regex = language
-          ? new RegExp("```" + language + "\\n([\\s\\S]*?)```", "m")
-          : /```[\w]*\n([\s\S]*?)```/m;
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
-        const match = text.match(regex);
-        return match ? match[1].trim() : text.trim();
-      };
+      // Extract the clean code block and set it — not the raw markdown response.
+      const cleaned = extractCodeBlock(data.generatedCode ?? "");
+      setCode(cleaned);
 
-      generatedCode = extractCodeBlock(generatedCode);
-      setCode(data.generatedCode);
+      // Broadcast the generated code over the collaborative editor socket.
+      if (codeRef.current?.readyState === WebSocket.OPEN) {
+        codeRef.current.send(cleaned);
+      }
 
-      // Broadcast the generated code if We2bSocket is active
-      // if (codeRef.current?.readyState === WebSocket.OPEN) {
-      //   codeRef.current.send(generatedCode);
-      // }
-
-      setTextBoxValue(""); // Clear the text box
-    } catch (error) {
-      console.error("Comprehensive Client-Side Error:", error);
-
-      // Detailed error handling
-      if (error instanceof Error) {
-        setError(error.message);
-      } else if (typeof error === "string") {
-        setError(error);
+      setTextBoxValue("");
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
       } else {
-        setError("An unexpected error occurred during API call");
+        setError("An unexpected error occurred");
       }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSendClick();
   };
 
   return (
@@ -125,47 +118,38 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         theme="vs-dark"
         value={code}
         onChange={handleEditorChange}
-        options={{
-          minimap: { enabled: false },
-          fontSize: 14,
-        }}
-        onMount={(editor, monaco) => {
-          // monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-          //   noSemanticValidation: true,
-          //   noSyntaxValidation: true,
-          // });
+        options={{ minimap: { enabled: false }, fontSize: 14 }}
+        onMount={(_editor, monaco) => {
           monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
             noSemanticValidation: true,
             noSyntaxValidation: true,
           });
         }}
       />
+
       <div className="absolute bottom-4 left-4">
         <FaWandMagicSparkles
           onClick={handleIconClick}
           className="text-2xl cursor-pointer text-white hover:text-blue-500 transition"
         />
-        
+
         {isTextBoxOpen && (
           <div className="flex flex-col mt-2">
             <div className="flex items-center bg-gray-800 text-white p-2 rounded shadow-md">
               <form onSubmit={handleSubmit}>
-              <input
-                type="text"
-                value={textBoxValue}
-                onChange={handleTextBoxChange}
-                
-                className="w-48 p-1 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter prompt here..."
-                disabled={isLoading}
-              />
+                <input
+                  type="text"
+                  value={textBoxValue}
+                  onChange={handleTextBoxChange}
+                  className="w-48 p-1 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter prompt here…"
+                  disabled={isLoading}
+                />
               </form>
               <BsFillSendFill
                 onClick={handleSendClick}
                 className={`text-xl cursor-pointer ml-2 transition ${
-                  isLoading
-                    ? "text-gray-500 cursor-not-allowed"
-                    : "hover:text-green-500"
+                  isLoading ? "text-gray-500 cursor-not-allowed" : "hover:text-green-500"
                 }`}
               />
             </div>

@@ -13,29 +13,38 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-//websocket variables
-
-var (
-	websocketUpgrader = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-	}
-)
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		return origin == "http://localhost:3000"
+	},
+}
 
 type Manager struct {
 	sync.RWMutex
 	clients  ClientList
 	handlers map[string]EventHandler
+	ctx      context.Context
+	cancel   context.CancelFunc
 }
 
 func NewManager(ctx context.Context) *Manager {
+	ctx, cancel := context.WithCancel(ctx)
 	manager := &Manager{
 		clients:  make(ClientList),
 		handlers: make(map[string]EventHandler),
+		ctx:      ctx,
+		cancel:   cancel,
 	}
-
 	manager.setUpEventHandlers()
 	return manager
+}
+
+// Shutdown gracefully stops the manager and all client goroutines.
+func (manager *Manager) Shutdown() {
+	manager.cancel()
 }
 
 func (manager *Manager) setUpEventHandlers() {
@@ -45,80 +54,48 @@ func (manager *Manager) setUpEventHandlers() {
 func SendMessage(event Event, client *Client) error {
 	var chatEvent SendMessageEvent
 
-	err := json.Unmarshal(event.Payload, &chatEvent)
-	if err != nil {
+	if err := json.Unmarshal(event.Payload, &chatEvent); err != nil {
 		return fmt.Errorf("bad payload in request: %v", err)
 	}
 
-	var broadcastMessage NewMessageEvent
+	broadcastMessage := NewMessageEvent{
+		TimeSent: time.Now(),
+		Message:  chatEvent.Message,
+		From:     chatEvent.From,
+	}
 
-	broadcastMessage.TimeSent = time.Now()
-	broadcastMessage.Message = chatEvent.Message
-	broadcastMessage.From = chatEvent.From
-	log.Println(broadcastMessage)
 	data, err := json.Marshal(broadcastMessage)
 	if err != nil {
-		return fmt.Errorf("failed to marshal broadcast msg %v", err)
+		return fmt.Errorf("failed to marshal broadcast message: %v", err)
 	}
-	log.Println("data is ",data)
 
 	broadcastMsgEvent := Event{
 		Payload: data,
 		Type:    EventIncomingMessage,
 	}
 
-	for client := range client.manager.clients {
-		client.egress <- broadcastMsgEvent
+	client.manager.RLock()
+	defer client.manager.RUnlock()
+	for c := range client.manager.clients {
+		c.egress <- broadcastMsgEvent
 	}
 
 	return nil
 }
 
-
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
 func (manager *Manager) ServeWebSocket(writer http.ResponseWriter, request *http.Request) {
-	// websocketUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
-	// upgrade regular http connection into websocket
 	connection, err := upgrader.Upgrade(writer, request, nil)
-
 	if err != nil {
-		log.Printf("Unable to upgrade http connection %v", err)
+		log.Printf("Unable to upgrade http connection: %v", err)
 		return
 	}
 
 	log.Println("new client connected")
 	newClient := NewClient(connection, manager)
-
 	manager.addClient(newClient)
-	go func() {
-        for {
-            _, p, err := connection.ReadMessage()
-            if err != nil {
-                log.Println("Error reading message:", err)
-                return
-            }
-            log.Printf("Received raw message: %s", string(p))
 
-            var event Event
-            if err := json.Unmarshal(p, &event); err != nil {
-                log.Println("Error unmarshaling event:", err)
-                continue
-            }
-
-            log.Printf("Parsed event: %+v", event)
-
-            if err := manager.routeEvent(event, newClient); err != nil {
-                log.Println("Error handling message:", err)
-            }
-        }
-    }()
-
+	// Single reader goroutine — gorilla/websocket forbids concurrent readers.
 	go newClient.readMessages()
-
 	go newClient.writeMessage()
 }
 
@@ -139,21 +116,12 @@ func (manager *Manager) removeClient(client *Client) {
 }
 
 func (manager *Manager) routeEvent(event Event, client *Client) error {
-	log.Printf("Received event: %+v", event) 
-    if event.Type == "" {
-        return errors.New("Event type is empty")
-    }
+	if event.Type == "" {
+		return errors.New("event type is empty")
+	}
 	handler, ok := manager.handlers[event.Type]
 	if !ok {
-		log.Println("unsupported event")
-		return errors.New("Unsupported event")
+		return fmt.Errorf("unsupported event type: %s", event.Type)
 	}
-	log.Println("Received the event of type ", event.Type)
-	err := handler(event, client)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return handler(event, client)
 }

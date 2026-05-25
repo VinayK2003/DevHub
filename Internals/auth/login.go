@@ -2,44 +2,46 @@ package auth
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
-// type User struct{
-// 	username string
-// 	password string
-// }
+type loginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
 
-func Login(w http.ResponseWriter,r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")       
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")        
-	w.Header().Set("Access-Control-Allow-Credentials", "true")  
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK) 
-		return
-	}
-	if r.Method!=http.MethodPost{
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
-	var credentials map[string]string
-	err:=json.NewDecoder(r.Body).Decode(&credentials)
-	if err!=nil{
-		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+type loginResponse struct {
+	Message  string `json:"message"`
+	Username string `json:"username"`
+}
+
+// Login handles POST /api/login.
+// NOTE: This is a stub — replace credential validation with a real DB lookup + bcrypt.
+func Login(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	username:=credentials["username"]
-	password:=credentials["password"]
-	fmt.Println(username,password)
-	respone:=map[string]string{
-		"message":"Login Successful",
-		"username":username,
-		"password":password,
+	var creds loginRequest
+	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
 	}
-	w.WriteHeader(http.StatusAccepted)
+
+	if creds.Username == "" || creds.Password == "" {
+		http.Error(w, "username and password are required", http.StatusBadRequest)
+		return
+	}
+
+	// TODO: validate credentials against a database with bcrypt comparison.
+	// For now this is a placeholder that accepts any non-empty credentials.
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(respone)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(loginResponse{
+		Message:  "login successful",
+		Username: creds.Username,
+		// Password is intentionally omitted from the response.
+	})
 }

@@ -1,26 +1,25 @@
-"use client"
+"use client";
 import React, { useState, useEffect, useRef } from "react";
 import Navbar from "./components/Navbar/Navbar";
 import CodeEditor from "./components/CodeEditor/CodeEditor";
-import Login from "./login/page"
 import Chat from "./components/Chat/Chat";
 import VideoSection from "./components/VideoSecion/VideoSection";
 import OutputSection from "./components/OutputSection/OutputSection";
-import { setupWebSocket, setupCodeWebSocket } from "./utils/websocket";
+import { setupWebSocket, setupCodeWebSocket, type ChatMessage } from "./utils/websocket";
 import { initiateMeeting, openCamera } from "./utils/videoCall";
-import  runCode  from "./utils/Code";
+import runCode from "./utils/code";
 
 export default function Home() {
   const [socketStatus, setSocketStatus] = useState("Not Connected");
-  const [username, setUsername] = useState<string>("");
-  const [messages, setMessages] = useState<string[][]>([]);
+  const [username] = useState<string>("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [code, setCode] = useState("");
   const [meetingCode, setMeetingCode] = useState("");
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [showOutput, setShowOutput] = useState(false);
   const [output, setOutput] = useState("");
   const [showChat, setShowChat] = useState(false);
-  const [selectedLanguage, setselectedLanguage] = useState<string>("");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("");
 
   const websocketRef = useRef<WebSocket | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -33,28 +32,26 @@ export default function Home() {
     openCamera(setLocalStream);
     setupCodeWebSocket(codeRef, setCode);
   }, []);
-  // const updateusername = (username: string) => {
-  //   setUsername(username);
-  // };
-  // if (!username) {
-  //   console.log("Rendering Login with setUsername:", setUsername)
-  //   return <Login updateusername={updateusername} />;
-// }
 
   const handleRunCode = async () => {
     try {
-      const result = await runCode(selectedLanguage,code);    
-        setShowOutput(true);
-        setOutput(String(result));
+      const result = await runCode(selectedLanguage, code);
+      setOutput(result);
+      setShowOutput(true);
     } catch (error) {
-        setShowOutput(true);
-        setOutput(`Error: ${error}`);
+      setOutput(`Error: ${String(error)}`);
+      setShowOutput(true);
     }
   };
-  
 
   const handleInitiateMeeting = async () => {
-    const roomId = await initiateMeeting(meetingCode, socketRef, peerRef, localStream,remoteVideoRef);
+    const roomId = await initiateMeeting(
+      meetingCode,
+      socketRef,
+      peerRef,
+      localStream,
+      remoteVideoRef
+    );
     setMeetingCode(roomId);
   };
 
@@ -67,10 +64,10 @@ export default function Home() {
         handleRunCode={handleRunCode}
         setShowChat={setShowChat}
         showChat={showChat}
-        setselectedLanguage={setselectedLanguage}
+        setselectedLanguage={setSelectedLanguage}
         selectedLanguage={selectedLanguage}
       />
-      <div className="h-full flex flex-1 overflow-hidden ">
+      <div className="h-full flex flex-1 overflow-hidden">
         <CodeEditor
           code={code}
           setCode={setCode}
@@ -92,10 +89,7 @@ export default function Home() {
         />
       </div>
       {showOutput && (
-        <OutputSection
-          output={output}
-          setShowOutput={setShowOutput}
-        />
+        <OutputSection output={output} setShowOutput={setShowOutput} />
       )}
     </div>
   );
